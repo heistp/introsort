@@ -4,13 +4,23 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"sync"
 	"time"
 )
 
-const Elements = 1024 * 1024
+const Elements = 10 * 1024 * 1024
+
+var Concurrent bool
 
 // main function
 func main() {
+	Concurrent = true
+	run()
+	Concurrent = false
+	run()
+}
+
+func run() {
 	data := make([]int, Elements)
 	for i := 0; i < len(data); i++ {
 		data[i] = rand.Int()
@@ -18,19 +28,27 @@ func main() {
 	start := time.Now()
 	introSort(data)
 	end := time.Now()
-	fmt.Println("elements:", Elements)
-	fmt.Println("sorted:", sort.IntsAreSorted(data))
+	fmt.Println("number of elements:", Elements)
+	fmt.Println("sorted successfully:", sort.IntsAreSorted(data))
+	fmt.Println("concurrent sort:", Concurrent)
 	fmt.Println("elapsed:", end.Sub(start))
+	fmt.Println("-----")
 }
 
 // introSort is the main sort function
 func introSort(data []int) {
 	maxdepth := maxDepth(len(data))
-	introSortDepth(data, maxdepth)
+	introSortDepth(data, maxdepth, nil)
 }
 
 // introSortDepth is the recursive sort function
-func introSortDepth(data []int, maxdepth int) {
+func introSortDepth(data []int, maxdepth int, wgDone *sync.WaitGroup) {
+	defer func() {
+		if wgDone != nil {
+			wgDone.Done()
+		}
+	}()
+
 	if len(data) <= 1 {
 		return
 	}
@@ -38,8 +56,18 @@ func introSortDepth(data []int, maxdepth int) {
 		heapSort(data)
 	} else {
 		p := partition(data)
-		introSortDepth(data[:p], maxdepth-1)
-		introSortDepth(data[p+1:], maxdepth-1)
+
+		if Concurrent && p > 64*1024 {
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go introSortDepth(data[:p], maxdepth-1, &wg)
+			wg.Add(1)
+			go introSortDepth(data[p+1:], maxdepth-1, &wg)
+			wg.Wait()
+		} else {
+			introSortDepth(data[:p], maxdepth-1, nil)
+			introSortDepth(data[p+1:], maxdepth-1, nil)
+		}
 	}
 }
 
