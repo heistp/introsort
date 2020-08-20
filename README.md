@@ -2,7 +2,8 @@
 Simple introsort implementation with concurrency.
 
 ```
-$ ./introsort
+$ go get -u github.com/heistp/introsort
+$ introsort
 number of elements: 10485760
 sorted successfully: true
 concurrent sort: false
