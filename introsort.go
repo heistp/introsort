@@ -23,28 +23,36 @@ func (s *Introsort) Sort(data []int) {
 
 // introSort is the recursive sort function
 func (s *Introsort) introSort(data []int, maxdepth int) {
+	// done
 	if len(data) <= 1 {
 		return
 	}
+
+	// heapsort
 	if maxdepth == 0 {
 		heapSort(data)
-	} else {
-		p := partition(data)
+		return
+	}
 
-		if s.Concurrent && len(data) > ConcurrentCutoff {
-			s.wg.Add(2)
-			go func() {
-				defer s.wg.Done()
-				s.introSort(data[:p], maxdepth-1)
-			}()
-			go func() {
-				defer s.wg.Done()
-				s.introSort(data[p+1:], maxdepth-1)
-			}()
-		} else {
-			s.introSort(data[:p], maxdepth-1)
+	// quicksort
+	p := partitionLumuto(data)
+	//p := partitionHoare(data)
+
+	if s.Concurrent && len(data) > ConcurrentCutoff {
+		s.wg.Add(2)
+		go func() {
+			defer s.wg.Done()
+			s.introSort(data[:p], maxdepth-1) // Lumuto
+			//s.introSort(data[:p+1], maxdepth-1) // Hoare
+		}()
+		go func() {
+			defer s.wg.Done()
 			s.introSort(data[p+1:], maxdepth-1)
-		}
+		}()
+	} else {
+		s.introSort(data[:p], maxdepth-1) // Lumuto
+		//s.introSort(data[:p+1], maxdepth-1) // Hoare
+		s.introSort(data[p+1:], maxdepth-1)
 	}
 }
 
@@ -57,8 +65,8 @@ func maxDepth(n int) (depth int) {
 	return
 }
 
-// partition uses the Lumuto partition scheme
-func partition(data []int) int {
+// partitionLumuto uses the Lumuto partition scheme
+func partitionLumuto(data []int) int {
 	hi := len(data) - 1
 	pivot := data[hi]
 	i := 0
@@ -70,6 +78,28 @@ func partition(data []int) int {
 	}
 	data[i], data[hi] = data[hi], data[i]
 	return i
+}
+
+// partitionHoare uses the Hoare partition scheme
+func partitionHoare(data []int) int {
+	hi := len(data) - 1
+	pivot := data[hi/2]
+	i := -1
+	j := hi + 1
+	for {
+		i++
+		for data[i] < pivot {
+			i++
+		}
+		j--
+		for data[j] > pivot {
+			j--
+		}
+		if i >= j {
+			return j
+		}
+		data[i], data[j] = data[j], data[i]
+	}
 }
 
 // heapSort sorts a slice in-place using heap sort
